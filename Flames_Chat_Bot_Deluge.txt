@@ -1,0 +1,179 @@
+/*
+*
+*Code written in Zoho Deulge.
+*This code belongs in the MessageHandler file
+*Create DB name 'matchmaker' with columns 'email' and 'emaillist'.
+*'emaillist' column will maintain the list of likers/followers for a particular email ID
+*'email' column will have the emailID of the person being liked
+*Author: Ashwin
+*
+*/
+response = Map();
+query_map = Map();
+data = Collection();
+flag = false;
+response_map = zoho.cliq.getRecords("flamesdb",query_map);
+dbresults = Collection();
+dbresults = response_map.get("list");
+////Checking for invalid emails////////////////
+//Create DB named randomInvalidWordsdb and add a list of invalid words under the column 'invalidwords'
+for each  result in dbresults
+{
+	data.insert(result.get("invalidwords"));
+}
+for each  word in data
+{
+	if(message.contains(word))
+	{
+		text = "Invalid name. You can't check flames with " + word;
+		flag = true;
+		break;
+	}
+}
+if(message.containsIgnoreCase("HI ") || message.containsIgnoreCase("HEY ") || message.equalsIgnoreCase("HI") || message.equalsIgnoreCase("HEY") || message.containsIgnoreCase("HELLO"))
+{
+	text = "Enter your crush's *First Name* quickly....";
+}
+else
+{
+	if(flag == false)
+	{
+		CRUSH = message;
+
+		if(!message.matches("[a-zA-Z]+") || message.length() < 3)
+			{
+				text = "That doesn't seem like a real name! Enter a valid name. Come on!";
+				response.put("text",text);
+				return response;
+			}
+
+		if(message.equalsIgnoreCase(user.get("first_name")) || message.equalsIgnoreCase(user.get("last_name")) || message.equalsIgnoreCase(user.get("first_name") + " " + user.get("last_name") ))
+		{
+			text = "Why would you want to do flames with yourself? Get a life! :facepalm: ";
+			response.put("text",text);
+			return response;
+		}
+		if(message.length() > 30)
+		{
+			text = "Thats too long a name. Find someone with a shorter name. Better Luck Next Time #GooglePay #Flames :joy:";
+			response.put("text",text);
+			return response;
+		}
+		//Deluge does not have for or while loops. Only List/ Collections. So create a list of 30 numbers (assuming 30 is max length of a name)
+		Loop_List = list({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30});
+		text = "";
+		name = user.get("first_name");
+		namesize1 = name.length();
+		list1 = Collection();
+		for each  i in Loop_List
+		{
+			if(i <= namesize1)
+			{
+				list1.insert(name.subString(i - 1,i));
+			}
+		}
+		namesize2 = message.length();
+		list2 = Collection();
+		for each  i in Loop_List
+		{
+			if(i <= namesize2)
+			{
+				list2.insert(message.subString(i - 1,i));
+			}
+		}
+		for each  i in Loop_List
+		{
+			i = i - 1;
+			if(i < namesize1)
+			{
+				matchflag = false;
+				for each  j in Loop_List
+				{
+					j = j - 1;
+					if(j < namesize2 && list1.get(i).equalsIgnoreCase(list2.get(j)))
+					{
+						list2.update(j,"@");
+						matchflag = true;
+					}
+				}
+				del = list1.get(i);
+				if(matchflag == true)
+				{
+					for each  k in Loop_List
+					{
+						k = k - 1;
+						if(k < namesize1 && list1.get(k).equalsIgnoreCase(del))
+						{
+							list1.update(k,"@");
+						}
+					}
+				}
+			}
+		}
+		count = 0;
+		for each  ch in list1
+		{
+			if(ch != '@' && ch != ' ')
+			{
+				count = count + 1;
+			}
+		}
+		for each  ch in list2
+		{
+			if(ch != '@' && ch != ' ')
+			{
+				count = count + 1;
+			}
+		}
+		flames = count % 6;
+		if(flames == 1)
+		{
+			text = "Friends";
+			finalResponse = "I guess you're FRIEND-zoned forever with "+ CRUSH +" lol :joy:";
+		}
+		else if(flames == 2)
+		{
+			text = "Love";
+			finalResponse = "LOVE! Well there's some hope with " + CRUSH + "!";
+		}
+		else if(flames == 3)
+		{
+			text = "Affection";
+			finalResponse = "Mere AFFECTION with "+CRUSH+". Just leave it right there!";
+		}
+		else if(flames == 4)
+		{
+			text = "Marriage";
+			finalResponse = "MARRIAGE! Forever stuck with " + CRUSH;
+		}
+		else if(flames == 5)
+		{
+			text = "Enemies";
+			finalResponse = CRUSH + " is your ENEMY! Don't even think about it!";
+		}
+		else if(flames == 0)
+		{
+			text = "Sibling";
+			finalResponse = "SIBLING! Better Luck Next Time #GooglePay #Flames #" + CRUSH;
+		}
+		// 		text=name.subString(2,3);
+		// text=namesize;
+		sendmail
+		[
+			from :zoho.loginuserid
+			to :"yourZohoemailID@zohoemaildomain.com"
+			subject :"Flames Respose"
+			message :"<div> Requester Name = " + user.get("first_name") + "<br/> Crush's Name= " + CRUSH + "<br/> Flames Result= " + text + "<br/></div>"
+		]
+		sendmail
+		[
+			from :zoho.loginuserid
+			to :user.get("email")
+			subject :"Here is your FLAMES result"
+			message :"<div> Hope you had fun using the FLAMES BOT. This bot was made just for fun. Thank you for your time. <br/><br/> Your Name = " + user.get("first_name") + "<br/> Crush's Name= " + CRUSH + "<br/> Flames Result= " + text + "<br/></div>"
+		]
+		text = finalResponse;
+	}
+}
+response.put("text",text);
+return response;

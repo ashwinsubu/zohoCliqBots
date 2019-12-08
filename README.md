@@ -1,2 +1,2 @@
 # zohoCliqBots
-Cliq bots written in Zoho Deluge
+Zoho Chat Bots written in Zoho Deluge

@@ -1,0 +1,162 @@
+/*
+*
+Code written in Zoho Deulge.
+This code belongs in the MessageHandler file
+Create DB name 'matchmaker' with columns 'email' and 'emaillist'.
+'emaillist' column will maintain the list of likers/followers for a particular email ID
+'email' column will have the emailID of the person being liked
+*
+*/
+response = Map();
+query_map = Map();
+searchGFEmailId = message.trim();
+if(!searchGFEmailId.matches("[a-zA-Z.]{3,40}@zohocorp\.com"))
+{
+	text = " >Enter a valid zohocorp email ID! \n >Go to people.zoho.com and paste the email ID of the person with whom you want to match! \n >Only if the other person also likes (or already liked) you there will be a match! \n >If you dont match with someone they wont be notified that you liked them!";
+	response.put("text",text);
+	return response;
+}
+////Checking for invalid emails////////////////
+//Create DB named randomInvalidWordsdb and add a list of invalid words under the column 'invalidwords'
+data = Collection();
+flag = false;
+response_mp = zoho.cliq.getRecords("randomInvalidWordsdb",query_map);
+dbresult_profane = Collection();
+dbresult_profane = response_mp.get("list");
+for each  result in dbresult_profane
+{
+	data.insert(result.get("invalidwords"));
+}
+for each  word in data
+{
+	if(searchGFEmailId.startsWithIgnoreCase(word))
+	{
+		text = "Enter valid zohocorp email ID! ";
+		flag = true;
+		break;
+	}
+}
+if(flag)
+{
+	response.put("text",text);
+	return response;
+}
+////////////////End of Checking for invalid emails///////////////////
+response_map = zoho.cliq.getRecords("matchmaker",query_map);
+dbresults = Collection();
+dbresults = response_map.get("list");
+//GF email ID
+isMatched = false;
+searchCurrentUserEmail = user.get("email");
+//Current user email ID
+//Check if GF email ID is in Current User's Likers List
+prefix = dbresults.getPrefix("\",\"email\":\"" + searchCurrentUserEmail);	// parsing email from DB result map to get record ID
+//Email regex
+if(prefix != null)
+{
+	lastIndexOfID = prefix.lastIndexOf("id\":\"");
+	matchmakerID = prefix.subString(lastIndexOfID + 5);
+	if(matchmakerID.matches("[0-9]+"))	// record ID is numeric
+	{
+		// if current user has likers list
+		record = zoho.cliq.getRecordById("matchmaker",matchmakerID);
+		obj = record.get("object");
+		listofgfs = List();
+		listofgfs = obj.get("emaillist");
+		if(listofgfs.contains(searchGFEmailId))
+		{
+			//MATCH
+			//Add Current user to GF's Liker List
+			text = "Its a MATCH!! Yaaay! \n Now go ahead! Its up to you to take this forward with " + searchGFEmailId + "! :wink:";
+			isMatched = true;
+		}
+		else
+		{
+			text = "NOT A MATCH yet.. Lets hope they like you back!  :Thinking: ";
+		}
+	}
+	else
+	{
+		//No one liked you yet! WAIT for a match!!!  mmID= " + matchmakerID + "\n\n
+		text = "NOT A MATCH yet !! Lets hope they like you back?  :Bored: ";
+	}
+}
+else
+{
+	//If Current user has no Likers List entry
+	text = "No match yet! Hope they like you back soon! :blush: ";
+}
+//Put entry of Current User in GF's Liker List
+prefixGF = dbresults.getPrefix("\",\"email\":\"" + searchGFEmailId);
+if(prefixGF != null)
+{
+	lastIndexOfGFID = prefixGF.lastIndexOf("id\":\"");	// parsing email from DB result map to get record ID
+	matchmakerGFID = prefixGF.subString(lastIndexOfGFID + 5);
+	if(matchmakerGFID.matches("[0-9]+"))
+	{
+		record = zoho.cliq.getRecordById("matchmaker",matchmakerGFID);
+		obj = record.get("object");
+		listofBfs = List();
+		listofBfs = obj.get("emaillist");
+		useremail = user.get("email");
+		//if curr usr has already liked GF dont update GF's liker list
+		if(!listofBfs.contains(useremail))
+		{
+			newlist = List();
+			newlist.add(useremail);
+			newlist.addAll(listofBfs);
+			val_map = Map();
+			val_map.put("emaillist",newlist);
+			val_map.put("email",searchGFEmailId);
+			zoho.cliq.updateRecord("matchmaker",matchmakerGFID,val_map);
+			if(isMatched)
+			{
+				sendmail
+				[
+					from :zoho.loginuserid
+					to :searchCurrentUserEmail
+					subject :"Z-Tinder You Matched With " + searchGFEmailId
+					message :"You just matched with " + searchGFEmailId + ". Its up to you to take it forward from here :)"
+				]
+				sendmail
+				[
+					from :zoho.adminuserid
+					to :searchGFEmailId
+					subject :"Z-Tinder You Matched With " + searchCurrentUserEmail
+					message :"You just matched with " + searchCurrentUserEmail + ". Its up to you to take it forward from here :)"
+				]
+			}
+		}
+		// 		text = text + " and added to GF\'s existing Likers List mmGFID= " + matchmakerGFID;
+		//change
+		response.put("text",text);
+		return response;
+	}
+}
+//if GF has no Likers List, create new entry with Current usr alone as Liker List for GF
+values_map = Map();
+listofBfs = List();
+listofBfs.add(searchCurrentUserEmail);
+values_map.put("emaillist",listofBfs);
+values_map.put("email",searchGFEmailId);
+response_map = zoho.cliq.createRecord("matchmaker",values_map);
+// text = text + " GF had no likers. Now added u as a liker. You r d only/first person who likes her lol";
+if(isMatched)
+{
+	sendmail
+	[
+		from :zoho.loginuserid
+		to :searchCurrentUserEmail
+		subject :"Z-Tinder You Matched With " + searchGFEmailId
+		message :"You just matched with " + searchGFEmailId + ". Its up to you to take it forward from here :)"
+	]
+	sendmail
+	[
+		from :zoho.adminuserid
+		to :searchGFEmailId
+		subject :"Z-Tinder You Matched With " + searchCurrentUserEmail
+		message :"You just matched with " + searchCurrentUserEmail + ". Its up to you to take it forward from here :)"
+	]
+}
+response.put("text",text);
+return response;
